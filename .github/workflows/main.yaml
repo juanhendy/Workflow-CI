@@ -28,4 +28,4 @@ jobs:
 
       - name: Run Model Training
         run: |
-          mlflow run . --no-conda
+          mlflow run . --env-manager local
