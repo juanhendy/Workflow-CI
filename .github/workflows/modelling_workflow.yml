@@ -1,0 +1,27 @@
+name: Model Training CI
+
+on: [push] # Akan jalan setiap kali ada push ke folder manapun
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.7'
+          
+      - name: Install dependencies
+        run: |
+          pip install mlflow dagshub pandas scikit-learn matplotlib
+          
+      - name: Run Training
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          # Sesuaikan dengan lokasi file Anda! 
+          # Jika file ada di folder 'Membangun_model', tambahkan foldernya:
+          python Membangun_model/modelling_tuning.py
