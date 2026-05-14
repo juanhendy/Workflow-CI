@@ -22,6 +22,9 @@ jobs:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Sesuaikan dengan lokasi file Anda! 
-          # Jika file ada di folder 'Membangun_model', tambahkan foldernya:
+          # Melihat isi folder agar tahu posisi file sebenarnya
+          ls -R
+          
+          # Gunakan jalur relatif dari akar repositori
+          # Pastikan penulisan huruf besar/kecil SAMA PERSIS dengan di GitHub
           python Membangun_model/modelling_tuning.py
