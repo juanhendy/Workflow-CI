@@ -22,8 +22,5 @@ jobs:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Perintah ls tetap ada untuk verifikasi jika terjadi error lain
-          ls -R
-          
-          # SESUAIKAN DENGAN STRUKTUR YANG TERBACA DI LOG GITHUB ANDA:
-          python MLProject/modelling.py --n_estimators 100 --max_depth 10
+          # Jalankan skrip di folder MLProject
+          python MLProject/modelling.py
