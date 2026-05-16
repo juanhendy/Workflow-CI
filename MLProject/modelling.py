@@ -21,9 +21,14 @@ if __name__ == "__main__":
 
     dagshub.init(repo_owner='juan10082002', repo_name='Membangun_model', mlflow=True)
     
-# Tambahkan parameter nested=True agar kompatibel dengan mlflow run
-    with mlflow.start_run(run_name="CI_Automated_Retrain", nested=True):
-        # Jalur relatif dari root repositori saat di-run via MLflow
+    # --- TRICK FIX UNTUK RE-TRAINING VIA CI ---
+    # Paksa akhiri run bawaan MLflow Project yang bentrok dengan tracking remote
+    if mlflow.active_run():
+        mlflow.end_run()
+    # ------------------------------------------
+
+    # Buat run baru secara bersih (Tanpa nested=True)
+    with mlflow.start_run(run_name="CI_Automated_Retrain"):
         df = pd.read_csv("MLProject/namadataset_preprocessing/cleaned_data.csv")
         
         X = df.drop('target', axis=1) # Sesuaikan kolom target Anda
@@ -41,4 +46,7 @@ if __name__ == "__main__":
         mlflow.log_metric("accuracy", acc)
         mlflow.sklearn.log_model(rf, "model")
         
+        # Cetak Run ID asli ke terminal agar bisa ditangkap oleh GitHub Actions
+        current_run_id = mlflow.active_run().info.run_id
+        print(f"TARGET_RUN_ID:{current_run_id}")
         print(f"Retraining Success! Accuracy: {acc}")
