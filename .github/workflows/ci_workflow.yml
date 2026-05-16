@@ -57,10 +57,10 @@ jobs:
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           # Membawa bobot model dari DagsHub menggunakan RUN_ID spesifik
+          # Flag --enable-mlserver dihapus demi stabilitas build env OS
           mlflow models build-docker \
             -m "runs:/${{ steps.train_model.outputs.RUN_ID }}/model" \
-            -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest" \
-            --enable-mlserver
+            -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest"
 
       # 7. Mengunggah Docker Image hasil build ke Docker Hub Anda
       - name: Push Docker Image to Docker Hub
