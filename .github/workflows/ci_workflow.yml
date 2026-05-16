@@ -21,12 +21,18 @@ jobs:
           pip install mlflow==2.19.0 dagshub pandas scikit-learn
           
       - name: Run MLflow Project Retraining
+        id: train_model
         env:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Tambahkan --env-manager local agar MLflow tidak mencari Conda
-          mlflow run MLProject --env-manager local -P n_estimators=120 -P max_depth=12
+          # Jalankan training dan tangkap log-nya untuk mengambil Run ID
+          mlflow run MLProject --env-manager local -P n_estimators=120 -P max_depth=12 > train_log.txt
+          cat train_log.txt
+          
+          # Mengambil Run ID menggunakan regex dari log mlflow
+          RUN_ID=$(str_id=$(grep -oP "with ID '\K[^']+" train_log.txt | head -n 1); echo $str_id)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
       # --- PROSES ADVANCE: BUILD & PUSH DOCKER HUB ---
       - name: Log in to Docker Hub
@@ -37,7 +43,7 @@ jobs:
 
       - name: Build Docker Image from MLflow Model
         run: |
-          mlflow models build-docker -m "runs:/${{ steps.get_run_id.outputs.RUN_ID }}/model" -n "username_dockerhub_anda/credit-card-model:latest" --enable-mlserver
+          mlflow models build-docker -m "runs Kish:/${{ steps.train_model.outputs.RUN_ID }}/model" -n "username_dockerhub_anda/credit-card-model:latest" --enable-mlserver
 
       - name: Push Docker Image to Docker Hub
         run: |

@@ -21,7 +21,8 @@ if __name__ == "__main__":
 
     dagshub.init(repo_owner='juan10082002', repo_name='Membangun_model', mlflow=True)
     
-    with mlflow.start_run(run_name="CI_Automated_Retrain"):
+# Tambahkan parameter nested=True agar kompatibel dengan mlflow run
+    with mlflow.start_run(run_name="CI_Automated_Retrain", nested=True):
         # Jalur relatif dari root repositori saat di-run via MLflow
         df = pd.read_csv("MLProject/namadataset_preprocessing/cleaned_data.csv")
         
