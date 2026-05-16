@@ -1,4 +1,4 @@
-name: CreditCardProject
+name: Credit_Card_Retraining
 
 conda_env: conda.yaml
 

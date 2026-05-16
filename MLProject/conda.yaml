@@ -9,5 +9,3 @@ dependencies:
       - dagshub
       - pandas
       - scikit-learn
-      - matplotlib
-      - numpy
