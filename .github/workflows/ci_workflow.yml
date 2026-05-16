@@ -56,11 +56,12 @@ jobs:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Membawa bobot model dari DagsHub menggunakan RUN_ID spesifik
-          # Flag --enable-mlserver dihapus demi stabilitas build env OS
+          # Ditambahkan --env-manager local agar Dockerfile MLflow menyalin
+          # dependensi Python lokal saat ini, bukan mengunduh Python 3.9 lawas dari luar.
           mlflow models build-docker \
             -m "runs:/${{ steps.train_model.outputs.RUN_ID }}/model" \
-            -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest"
+            -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest" \
+            --env-manager local
 
       # 7. Mengunggah Docker Image hasil build ke Docker Hub Anda
       - name: Push Docker Image to Docker Hub
