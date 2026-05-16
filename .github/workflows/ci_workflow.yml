@@ -25,8 +25,8 @@ jobs:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
-          # Menggunakan parameter -P secara terpisah
-          mlflow run MLProject -P n_estimators=120 -P max_depth=12
+          # Tambahkan --env-manager local agar MLflow tidak mencari Conda
+          mlflow run MLProject --env-manager local -P n_estimators=120 -P max_depth=12
 
       # --- PROSES ADVANCE: BUILD & PUSH DOCKER HUB ---
       - name: Log in to Docker Hub
