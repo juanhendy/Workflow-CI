@@ -8,47 +8,61 @@ jobs:
   train-and-build:
     runs-on: ubuntu-latest
     steps:
+      # 1. Mengunduh kode terbaru dari repositori GitHub
       - name: Checkout Code
         uses: actions/checkout@v4
       
+      # 2. Menyiapkan lingkungan Python versi 3.12.7 sesuai spesifikasi
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12.7'
           
-      # Baris 11-14 harusnya murni CLI untuk menginstal dependencies
+      # 3. Menginstal dependency utama di lingkungan runner
       - name: Install Dependencies
         run: |
           pip install mlflow==2.19.0 dagshub pandas scikit-learn
           
+      # 4. Mengeksekusi script modelling secara langsung & menangkap RUN_ID dari DagsHub
       - name: Run MLflow Project Retraining
         id: train_model
         env:
           DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
+          # Menjalankan skrip Python dan menyimpan output log-nya ke file teks
           python MLProject/modelling.py --n_estimators 120 --max_depth 12 > train_log.txt
           cat train_log.txt
+          
+          # Mengambil Run ID bersih yang di-generate langsung oleh DagsHub
           RUN_ID=$(grep -oP "TARGET_RUN_ID:\K.*" train_log.txt)
           echo "Ditemukan Run ID valid untuk Docker: $RUN_ID"
+          
+          # Menyimpan Run ID ke dalam GitHub Output agar bisa dibaca step berikutnya
           echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
+      # 5. Autentikasi ke akun Docker Hub menggunakan GitHub Secrets
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # 6. Mengemas model MLflow menjadi Docker Image (Syarat Advance)
       - name: Build Docker Image from MLflow Model
         env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+          # Mengarahkan kompas build-docker ke server cloud DagsHub
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Membangun_model.mlflow
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
+          # Membawa bobot model dari DagsHub menggunakan RUN_ID spesifik
           mlflow models build-docker \
             -m "runs:/${{ steps.train_model.outputs.RUN_ID }}/model" \
             -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest" \
             --enable-mlserver
 
+      # 7. Mengunggah Docker Image hasil build ke Docker Hub Anda
       - name: Push Docker Image to Docker Hub
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest
