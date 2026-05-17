@@ -10,22 +10,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout kode terbaru dari repositori
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # 2. Setup Python sesuai spesifikasi
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12.7'
 
-      # 3. Install dependencies
       - name: Install Dependencies
         run: |
           pip install mlflow==2.19.0 dagshub pandas scikit-learn
 
-      # 4. Jalankan MLflow Project dan tangkap RUN_ID
       - name: Run MLflow Project Retraining
         id: train_model
         env:
@@ -34,35 +30,26 @@ jobs:
         run: |
           python MLProject/modelling.py --n_estimators 120 --max_depth 12 > train_log.txt
           cat train_log.txt
-
           RUN_ID=$(grep -oP "TARGET_RUN_ID:\K.*" train_log.txt | tr -d '[:space:]')
           echo "Ditemukan Run ID: $RUN_ID"
           echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
-      # =====================================================================
-      # 5. UPLOAD ARTEFAK MODEL KE GITHUB (SYARAT SKILLED → ADVANCE)
-      # Menyimpan model hasil training sebagai GitHub Artifact agar dapat
-      # diakses, diunduh, dan diaudit tanpa harus masuk ke DagsHub.
-      # =====================================================================
+      # SYARAT SKILLED → ADVANCE: simpan artefak model ke GitHub
       - name: Download Model Artifact from DagsHub
         env:
           MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Membangun_model.mlflow
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          RUN_ID: ${{ steps.train_model.outputs.RUN_ID }}
         run: |
           python - <<'EOF'
-          import mlflow
-          import os
-
-          run_id = os.environ.get("RUN_ID", "${{ steps.train_model.outputs.RUN_ID }}")
+          import mlflow, os
+          run_id = os.environ["RUN_ID"]
           print(f"Mengunduh artefak untuk Run ID: {run_id}")
-
           client = mlflow.MlflowClient()
           local_path = client.download_artifacts(run_id, "model", "./downloaded_model")
           print(f"Artefak berhasil diunduh ke: {local_path}")
           EOF
-        env:
-          RUN_ID: ${{ steps.train_model.outputs.RUN_ID }}
 
       - name: Upload Model Artifact to GitHub
         uses: actions/upload-artifact@v4
@@ -71,16 +58,12 @@ jobs:
           path: ./downloaded_model/
           retention-days: 30
 
-      # =====================================================================
-      # 6. Login ke Docker Hub
-      # =====================================================================
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 7. Build Docker Image dari model MLflow (syarat Advance)
       - name: Build Docker Image from MLflow Model
         env:
           MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Membangun_model.mlflow
@@ -92,7 +75,6 @@ jobs:
             -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest" \
             --env-manager local
 
-      # 8. Push Docker Image ke Docker Hub
       - name: Push Docker Image to Docker Hub
         run: |
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest
