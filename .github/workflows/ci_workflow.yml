@@ -45,15 +45,12 @@ jobs:
           echo "=== ISI TRAIN LOG ==="
           cat train_log.txt
 
-          # Coba ambil RUN_ID dari format TARGET_RUN_ID: yang dicetak modelling.py
           RUN_ID=$(grep "TARGET_RUN_ID:" train_log.txt | sed 's/.*TARGET_RUN_ID://' | tr -d '[:space:]' | tail -1)
 
-          # Fallback: ambil dari format MLflow default "Run (ID 'xxxx')"
           if [ -z "$RUN_ID" ]; then
             RUN_ID=$(grep -oP "(?<=Run \(ID ')[a-f0-9]+" train_log.txt | tail -1)
           fi
 
-          # Fallback ke-2: ambil dari baris "with run_id"
           if [ -z "$RUN_ID" ]; then
             RUN_ID=$(grep -oP "(?<=run_id=)[a-f0-9]+" train_log.txt | tail -1)
           fi
@@ -81,15 +78,13 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build Docker Image from MLflow Model
-        env:
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Membangun_model.mlflow
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+      # Build Docker dari model_output/ lokal (bukan runs:/ URI ke DagsHub)
+      # Menghindari DagsHub 500 error saat download artifact
+      - name: Build Docker Image from Local Model
         run: |
-          echo "Building Docker image untuk Run ID: ${{ steps.train_model.outputs.RUN_ID }}"
+          echo "Building Docker image dari model_output/ lokal..."
           mlflow models build-docker \
-            -m "runs:/${{ steps.train_model.outputs.RUN_ID }}/model" \
+            -m "./model_output" \
             -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest" \
             --env-manager local
 
