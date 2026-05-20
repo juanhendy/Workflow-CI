@@ -18,16 +18,10 @@ jobs:
         with:
           python-version: '3.12.7'
 
-      - name: Install Miniconda
-        uses: conda-incubator/setup-miniconda@v3
-        with:
-          auto-activate-base: true
-          activate-environment: ""
+      - name: Install Dependencies
+        run: |
+          pip install mlflow==2.19.0 dagshub pandas scikit-learn numpy
 
-      - name: Install MLflow
-        run: pip install mlflow==2.19.0 dagshub
-
-      # SYARAT KRITERIA 3: gunakan "mlflow run" bukan "python modelling.py"
       - name: Run MLflow Project Retraining
         id: train_model
         env:
@@ -35,36 +29,44 @@ jobs:
           MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
           MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
           DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
           mlflow run MLProject \
-            --env-manager conda \
+            --env-manager local \
             -P n_estimators=120 \
             -P max_depth=12 \
             2>&1 | tee train_log.txt
 
-          echo "=== ISI TRAIN LOG ==="
+          echo "=== TRAIN LOG ==="
           cat train_log.txt
 
-          RUN_ID=$(grep "TARGET_RUN_ID:" train_log.txt | sed 's/.*TARGET_RUN_ID://' | tr -d '[:space:]' | tail -1)
+          echo "=== CARI model_output DI SEMUA LOKASI ==="
+          find / -name "model_output" -type d 2>/dev/null || echo "Tidak ditemukan"
 
+          echo "=== ISI WORKSPACE ==="
+          ls -la ${{ github.workspace }}/
+
+          echo "=== ISI MLProject/ ==="
+          ls -la ${{ github.workspace }}/MLProject/
+
+          RUN_ID=$(grep "TARGET_RUN_ID:" train_log.txt | sed 's/.*TARGET_RUN_ID://' | tr -d '[:space:]' | tail -1)
           if [ -z "$RUN_ID" ]; then
             RUN_ID=$(grep -oP "(?<=Run \(ID ')[a-f0-9]+" train_log.txt | tail -1)
           fi
-
-          if [ -z "$RUN_ID" ]; then
-            RUN_ID=$(grep -oP "(?<=run_id=)[a-f0-9]+" train_log.txt | tail -1)
-          fi
-
           echo "Run ID: $RUN_ID"
-          [ -z "$RUN_ID" ] && echo "ERROR: RUN_ID kosong!" && exit 1
-
+          [ -z "$RUN_ID" ] && exit 1
           echo "RUN_ID=$RUN_ID" >> $GITHUB_OUTPUT
 
-          echo "=== CEK model_output ==="
-          ls -la ${{ github.workspace }}/model_output || echo "model_output belum ada"
+      - name: Copy and Upload Model Artifact
+        run: |
+          # Cari model_output di mana saja lalu copy ke workspace root
+          MODEL_DIR=$(find / -name "model_output" -type d 2>/dev/null | head -1)
+          echo "model_output ditemukan di: $MODEL_DIR"
 
-      # SYARAT SKILLED → ADVANCE: upload model dari model_output di root workspace
+          mkdir -p ${{ github.workspace }}/model_output
+          cp -r "$MODEL_DIR/." ${{ github.workspace }}/model_output/
+          echo "Isi model_output:"
+          ls -la ${{ github.workspace }}/model_output/
+
       - name: Upload Model Artifact to GitHub
         uses: actions/upload-artifact@v4
         with:
@@ -78,12 +80,8 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build Docker dari model_output di root workspace (bukan DagsHub)
       - name: Build Docker Image from Local Model
         run: |
-          echo "Isi model_output:"
-          ls -la ${{ github.workspace }}/model_output/
-
           mlflow models build-docker \
             -m "${{ github.workspace }}/model_output" \
             -n "${{ secrets.DOCKERHUB_USERNAME }}/credit-card-model:latest" \
