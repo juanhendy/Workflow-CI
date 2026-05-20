@@ -3,7 +3,6 @@ import os
 import pandas as pd
 import mlflow
 import mlflow.sklearn
-import dagshub
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
@@ -15,12 +14,7 @@ def run_retraining():
     parser.add_argument("--max_depth",    type=int, default=10)
     args = parser.parse_args()
 
-    # --- 2. AUTENTIKASI DAGSHUB ---
-    dagshub_token = os.getenv("DAGSHUB_TOKEN")
-    if dagshub_token:
-        dagshub.auth.add_app_token(dagshub_token)
-
-    dagshub.init(repo_owner='juan10082002', repo_name='Membangun_model', mlflow=True)
+    # --- 2. AUTENTIKASI DAGSHUB (Dihapus karena sudah di-handle oleh GitHub Env) ---
     mlflow.sklearn.autolog(disable=True)
 
     # --- 3. MEMBACA DATASET ---
@@ -48,8 +42,9 @@ def run_retraining():
     )
 
     # --- 4. TRAINING & MLFLOW LOGGING ---
-    mlflow.set_experiment("CI_Retraining_Experiment")
+    # CATATAN: mlflow.set_experiment dihapus agar mengikuti Experiment ID dari perintah 'mlflow run'
 
+    # nested=True tetap dipertahankan karena berjalan di dalam lingkungan 'mlflow run'
     with mlflow.start_run(run_name="CI_Automated_Retrain", nested=True):
         max_depth = args.max_depth if args.max_depth > 0 else None
         rf = RandomForestClassifier(
@@ -74,9 +69,14 @@ def run_retraining():
         mlflow.sklearn.log_model(rf, "model")
 
         # --- 5. SIMPAN MODEL LOKAL → model_output/ (untuk artifact upload CI) ---
-        # GITHUB_WORKSPACE = root runner; MLflow run dijalankan dari sana
         workspace    = os.getenv("GITHUB_WORKSPACE", os.getcwd())
         model_output = os.path.join(workspace, "model_output")
+        
+        # Bersihkan folder jika sudah ada isinya agar mlflow.sklearn.save_model tidak error
+        if os.path.exists(model_output):
+            import shutil
+            shutil.rmtree(model_output)
+            
         os.makedirs(model_output, exist_ok=True)
         mlflow.sklearn.save_model(rf, model_output)
 
