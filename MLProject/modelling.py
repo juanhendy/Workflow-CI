@@ -50,7 +50,7 @@ def run_retraining():
     # --- 4. TRAINING & MLFLOW LOGGING ---
     mlflow.set_experiment("CI_Retraining_Experiment")
 
-    with mlflow.start_run(run_name="CI_Automated_Retrain"):
+    with mlflow.start_run(run_name="CI_Automated_Retrain", nested=True):
         max_depth = args.max_depth if args.max_depth > 0 else None
         rf = RandomForestClassifier(
             n_estimators=args.n_estimators,
